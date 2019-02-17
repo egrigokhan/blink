@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+
+	<style type="text/css">
+		@font-face {
+			font-family: 'DoctorWho';
+			src: url('doctor_who.woff') format('woff'), /* Chrome 6+, Firefox 3.6+, IE 9+, Safari 5.1+ */
+			url('doctor_who.ttf') format('truetype'); /* Chrome 4+, Firefox 3.5, Opera 10+, Safari 3—5 */
+		}
+
+		button {
+		    background-color: Transparent;
+		    background-repeat:no-repeat;
+		    border: none;
+		    cursor:pointer;
+		    overflow: hidden;
+		    outline:none;
+		  }
+
+		button:hover {
+		    opacity: 1;
+		    transition: 0.3s;
+		}
+	</style>
+</head>
+<body onload="onload()">
+	<script src="./js/libs/utils.js"></script>
+	<script src="../build/clmtrackr.js"></script>
+	<script src="./js/libs/Stats.js"></script>
+
+	<img id="angel-image" style="position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%" src="background.png">
+
+	<button id="change-angel-button" style="position: absolute; font-size: 80px; font-family: DoctorWho; text-align: center;">"Don't blink. Don't even blink. Blink and you're dead. Don't turn your back. Don't look away. And don't blink."</button>
+
+	<button id="start-game-button" style="position: absolute; font-size: 50px; font-family: DoctorWho; text-align: center; color: rgb(212, 175, 55)" enabled = false onclick="startGame()">Good Luck</button>
+
+	<div id="content" style="display: none">
+			<div id="container">
+				<video id="videoel" width="400" height="300" preload="auto" loop playsinline autoplay>
+				</video>
+				<canvas id="overlay" width="400" height="300"></canvas>
+			</div>		
+	</div>
+
+	<p id="time" style="text-align: center; font-family: DoctorWho;"></p>
+
+</body>
+
+<script type="text/javascript">
+
+	let isGameOver = false
+	let angelIndex = -1
+	let angelImages = ["angel-1.jpg", "angel-2.jpg", "angel-3.jpg", "angel-4.jpg"]
+	
+	function onload() {
+		console.log("LOAD")
+		let image = document.getElementById("angel-image")
+		let button = document.getElementById("change-angel-button")
+		let startGameButton = document.getElementById("start-game-button")
+		let time = document.getElementById("time")
+
+		image.style.width = window.innerWidth + "px"
+		image.style.height = window.innerHeight + "px"
+		// image.style.display = "none"
+
+		button.style.position = "absolute"
+		button.style.top = ((window.innerHeight - button.offsetHeight) / 2) + "px"
+		button.style.left = ((window.innerWidth - button.offsetWidth) / 2) + "px"
+
+		time.style.position = "absolute"
+		time.style.top = ((window.innerHeight - time.offsetHeight) / 2) + "px"
+		time.style.left = ((window.innerWidth - time.offsetWidth) / 2) + "px"
+
+		startGameButton.style.position = "absolute"
+		startGameButton.style.top = (300 + (window.innerHeight - button.offsetHeight) / 2) + "px"
+		startGameButton.style.left = ((window.innerWidth - startGameButton.offsetWidth) / 2) + "px"
+	}
+
+	function startGame() {
+		startClock()
+		startVideo()
+
+		let button = document.getElementById("change-angel-button")
+		let startGameButton = document.getElementById("start-game-button")
+
+		button.style.display = "none"
+		startGameButton.style.display = "none"
+
+		changeImage()
+	}
+	
+	function changeImage() {
+		if(angelIndex == -1) {
+			let image = document.getElementById("angel-image")
+			image.style.display = "block"
+		} else if(angelIndex == angelImages.length - 1) {
+			gameOver()
+			return
+		}
+
+		angelIndex = (angelIndex + 1) % angelImages.length
+
+		let image = document.getElementById("angel-image")
+
+		image.src = angelImages[angelIndex]
+	}
+
+	function gameOver() {
+		isGameOver = true
+		stopVideo()
+
+		console.log("GAME OVER")
+	}
+
+	function startClock() {
+		var initTime = new Date().getTime();
+		updateClock(initTime);
+		window.setInterval(updateClock, 1, initTime);
+	}
+
+	function stopVideo() {
+
+	}
+
+	function stopClock() {
+
+	}
+
+	function updateClock(initTime) {
+		var now = new Date();
+		var milli = now.getTime() - initTime;
+		if(!isGameOver) {
+			document.getElementById('time').innerHTML = milli;
+		}
+	}
+</script>
+
+			<script>
+
+				var didBlink = false
+				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
+				var overlay = document.getElementById('overlay');
+				var overlayCC = overlay.getContext('2d');
+
+				/*********** Setup of video/webcam and checking for webGL support *********/
+
+				var insertAltVideo = function(video) {
+					// insert alternate video if getUserMedia not available
+					if (supports_video()) {
+						if (supports_webm_video()) {
+							video.src = "./media/cap12_edit.webm";
+						} else if (supports_h264_baseline_video()) {
+							video.src = "./media/cap12_edit.mp4";
+						} else {
+							return false;
+						}
+						return true;
+					} else return false;
+				}
+
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions of video are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+				}
+
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						adjustVideoProportions();
+						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+					alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+				}
+
+				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+
+				// set up video
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
+				} else {
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
+				}
+
+				/*********** Code for face tracking *********/
+
+				var ctrack = new clm.tracker();
+				ctrack.init();
+				var trackingStarted = false;
+
+				function startVideo() {
+					// start video
+					vid.play();
+					// start tracking
+					ctrack.start(vid);
+					trackingStarted = true;
+					// start loop to draw face
+					drawLoop();
+				}
+
+				let previousLeftEyeEAR = 0
+				let leftEyeEAR = 0
+
+				let previousRightEyeEAR = 0
+				let rightEyeEAR = 0
+
+				function drawLoop() {
+					requestAnimFrame(drawLoop);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
+					//psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
+					let positions = ctrack.getCurrentPosition()
+					if (positions) {
+						ctrack.draw(overlay);
+
+						let leftEyep2p6DifSqr = Math.sqrt((positions[63][0] - positions[66][0])*(positions[63][0] - positions[66][0]) + (positions[63][1] - positions[66][1])*(positions[63][1] - positions[66][1]))
+						let leftEyep3p5DifSqr = Math.sqrt((positions[64][0] - positions[65][0])*(positions[64][0] - positions[65][0]) + (positions[64][1] - positions[65][1])*(positions[64][1] - positions[65][1]))
+						let leftEyep1p4DifSqr = Math.sqrt((positions[23][0] - positions[25][0])*(positions[23][0] - positions[25][0]) + (positions[23][1] - positions[25][1])*(positions[23][1] - positions[25][1]))
+
+						let rightEyep2p6DifSqr = Math.sqrt((positions[67][0] - positions[70][0])*(positions[67][0] - positions[70][0]) + (positions[67][1] - positions[70][1])*(positions[67][1] - positions[70][1]))
+						let rightEyep3p5DifSqr = Math.sqrt((positions[68][0] - positions[69][0])*(positions[68][0] - positions[69][0]) + (positions[68][1] - positions[69][1])*(positions[68][1] - positions[69][1]))
+						let rightEyep1p4DifSqr = Math.sqrt((positions[30][0] - positions[28][0])*(positions[30][0] - positions[28][0]) + (positions[30][1] - positions[28][1])*(positions[30][1] - positions[28][1]))
+
+						previousLeftEyeEAR = leftEyeEAR
+						leftEyeEAR = 1000 * (leftEyep2p6DifSqr + leftEyep3p5DifSqr) / (2*leftEyep1p4DifSqr)
+
+						previousRightEyeEAR = rightEyeEAR
+						rightEyeEAR = 1000 * (rightEyep2p6DifSqr + rightEyep3p5DifSqr) / (2*rightEyep1p4DifSqr)
+
+						leftEyeDif = leftEyeEAR - previousLeftEyeEAR
+						rightEyeDif = rightEyeEAR - previousRightEyeEAR
+
+						/*
+						if(leftEyeDif < -13.5 && rightEyeDif < -13.5) {
+							console.log(leftEyeDif, rightEyeDif)
+						}
+						*/
+
+						if((leftEyeDif < -15 && rightEyeDif < -15) && !didBlink) {
+							console.log("BLINK")
+							didBlink = true
+							changeImage()
+						} else if(didBlink) {
+							didBlink = false
+							console.log("NO BLINK")
+						}
+					}
+				}
+
+				/*********** Code for stats **********/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+
+				// update stats on every iteration
+				document.addEventListener('clmtrackrIteration', function(event) {
+					stats.update();
+				}, false);
+
+			</script>
+</html>
